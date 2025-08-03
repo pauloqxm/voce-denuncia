@@ -47,19 +47,24 @@ bairro_unique = sorted(df["Bairro"].dropna().unique())
 
 tipo_select = pn.widgets.Select(name="Tipo de Denúncia", options=["Todos"] + tipo_unique)
 bairro_select = pn.widgets.Select(name="Bairro", options=["Todos"] + bairro_unique)
+selected_index = pn.widgets.IntInput(name="Índice Selecionado", value=-1, visible=False)
 
-@pn.depends(tipo_select, bairro_select)
-def atualizar_mapa(tipo, bairro):
+mapa_pane = pn.pane.HTML(height=500, sizing_mode="stretch_width")
+tabela_widget = pn.widgets.DataFrame(df[["Nome", "Bairro", "Tipo de Denúncia", "Breve relato", "SubmissionDate"]], width=1000)
+
+def atualizar_visual(tipo, bairro):
     filtered_df = df.copy()
     if tipo != "Todos":
         filtered_df = filtered_df[filtered_df["Tipo de Denúncia"] == tipo]
     if bairro != "Todos":
         filtered_df = filtered_df[filtered_df["Bairro"] == bairro]
 
+    tabela_widget.value = filtered_df[["Nome", "Bairro", "Tipo de Denúncia", "Breve relato", "SubmissionDate"]]
+
     mapa_html = "<div style='height: 500px;'>Mapa não pôde ser gerado.</div>"
     if not filtered_df.empty:
         mapa = folium.Map(location=[filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()], zoom_start=13)
-        for _, row in filtered_df.iterrows():
+        for idx, row in filtered_df.iterrows():
             if pd.notnull(row["Latitude"]) and pd.notnull(row["Longitude"]):
                 imagem_html = ""
                 if pd.notnull(row.get("Foto_URL", "")):
@@ -72,18 +77,24 @@ def atualizar_mapa(tipo, bairro):
                     data=row.get("SubmissionDate"),
                     imagem=imagem_html
                 )
-                folium.Marker([row["Latitude"], row["Longitude"]], popup=folium.Popup(popup_info, max_width=300)).add_to(mapa)
+                marker = folium.Marker(
+                    [row["Latitude"], row["Longitude"]],
+                    popup=folium.Popup(popup_info, max_width=300),
+                    icon=folium.Icon(color="blue", icon="info-sign")
+                )
+                marker.add_to(mapa)
         mapa_html = mapa._repr_html_()
-    return pn.pane.HTML(mapa_html, height=500)
+    mapa_pane.object = mapa_html
 
-@pn.depends(tipo_select, bairro_select)
-def atualizar_tabela(tipo, bairro):
-    filtered_df = df.copy()
-    if tipo != "Todos":
-        filtered_df = filtered_df[filtered_df["Tipo de Denúncia"] == tipo]
-    if bairro != "Todos":
-        filtered_df = filtered_df[filtered_df["Bairro"] == bairro]
-    return pn.widgets.DataFrame(filtered_df[["Nome", "Bairro", "Tipo de Denúncia", "Breve relato", "SubmissionDate"]], width=1000)
+@pn.depends(tipo_select.param.value, bairro_select.param.value)
+def interface(tipo, bairro):
+    atualizar_visual(tipo, bairro)
+    return pn.Column(
+        pn.pane.Markdown("### 🗺️ Mapa das Denúncias"),
+        mapa_pane,
+        pn.pane.Markdown("### 📄 Lista de Denúncias"),
+        tabela_widget
+    )
 
 template = pn.template.FastListTemplate(
     title="📋 Denúncias Populares",
@@ -93,10 +104,7 @@ template = pn.template.FastListTemplate(
         bairro_select,
     ],
     main=[
-        pn.pane.Markdown("### 🗺️ Mapa das Denúncias"),
-        atualizar_mapa,
-        pn.pane.Markdown("### 📄 Lista de Denúncias"),
-        atualizar_tabela,
+        interface
     ],
     accent_base_color="#2A4D9B",
     header_background="#2A4D9B"
