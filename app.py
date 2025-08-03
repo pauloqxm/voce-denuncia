@@ -1,7 +1,6 @@
-import streamlit as st
+import panel as pn
 import pandas as pd
 import folium
-from streamlit_folium import folium_static
 from datetime import datetime
 
 # Configuração da página
