@@ -6,6 +6,16 @@ from datetime import datetime
 
 pn.extension()
 
+novo_popup_info_html = '''<div style="font-family: 'Segoe UI', sans-serif; background: #f0f4ff; border: 2px solid #2A4D9B; border-radius: 10px; padding: 12px; max-width: 300px;">
+  <h3 style="margin-top: 0; color: #2A4D9B; font-size: 18px;">🚨 Denúncia Registrada</h3>
+  <p style="margin: 6px 0;"><strong>👤 Nome:</strong> {nome}</p>
+  <p style="margin: 6px 0;"><strong>📌 Tipo:</strong> {tipo}</p>
+  <p style="margin: 6px 0;"><strong>🏙️ Bairro:</strong> {bairro}</p>
+  <p style="margin: 6px 0;"><strong>🧾 Relato:</strong> {relato}</p>
+  <p style="margin: 6px 0;"><strong>📅 Data:</strong> {data}</p>
+  {imagem}
+</div>'''
+
 def carregar_dados():
     try:
         url = "https://docs.google.com/spreadsheets/d/1MV2b4e3GNc_rhA32jeMuVNhUQWz6HkP7xrC42VscYIk/export?format=csv"
@@ -54,17 +64,14 @@ def atualizar_mapa(tipo, bairro):
                 imagem_html = ""
                 if pd.notnull(row.get("Foto_URL", "")):
                     imagem_html = f'<a href="{row["Foto_URL"]}" target="_blank"><img src="{row["Foto_URL"]}" width="200"></a>'
-                popup_info = f'''
-                    <div style="font-family: Arial;">
-                        <h4>🚨 Denúncia Registrada</h4>
-                        <b>Nome:</b> {row.get("Nome")}<br>
-                        <b>Tipo:</b> {row.get("Tipo de Denúncia")}<br>
-                        <b>Bairro:</b> {row.get("Bairro")}<br>
-                        <b>Relato:</b> {row.get("Breve relato")}<br>
-                        <b>Data:</b> {row.get("SubmissionDate")}<br>
-                        {imagem_html}
-                    </div>
-                '''
+                popup_info = novo_popup_info_html.format(
+                    nome=row.get("Nome"),
+                    tipo=row.get("Tipo de Denúncia"),
+                    bairro=row.get("Bairro"),
+                    relato=row.get("Breve relato"),
+                    data=row.get("SubmissionDate"),
+                    imagem=imagem_html
+                )
                 folium.Marker([row["Latitude"], row["Longitude"]], popup=folium.Popup(popup_info, max_width=300)).add_to(mapa)
         mapa_html = mapa._repr_html_()
     return pn.pane.HTML(mapa_html, height=500)
