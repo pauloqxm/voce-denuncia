@@ -2,12 +2,7 @@
 import panel as pn
 import pandas as pd
 import folium
-from folium import Popup, Marker
-from branca.element import MacroElement
-from bokeh.models.widgets import DataTable, TableColumn
 from datetime import datetime
-import io
-import requests
 
 pn.extension()
 
