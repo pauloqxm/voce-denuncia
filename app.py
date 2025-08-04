@@ -1,3 +1,5 @@
+
+
 import panel as pn
 import pandas as pd
 import folium
@@ -44,23 +46,14 @@ df = carregar_dados()
 tipo_unique = sorted(df["Tipo de Denúncia"].dropna().unique())
 bairro_unique = sorted(df["Bairro"].dropna().unique())
 
-# Adicionando seletor de tipo de mapa
-mapa_types = {
-    "OpenStreetMap": "OpenStreetMap",
-    "Stamen Terrain": "Stamen Terrain",
-    "Stamen Toner": "Stamen Toner",
-    "CartoDB Positron": "CartoDB Positron"
-}
-
 tipo_select = pn.widgets.Select(name="Tipo de Denúncia", options=["Todos"] + tipo_unique)
 bairro_select = pn.widgets.Select(name="Bairro", options=["Todos"] + bairro_unique)
-mapa_select = pn.widgets.Select(name="Tipo de Mapa", options=mapa_types, value="OpenStreetMap")
 selected_index = pn.widgets.IntInput(name="Índice Selecionado", value=-1, visible=False)
 
 mapa_pane = pn.pane.HTML(height=500, sizing_mode="stretch_width")
 tabela_widget = pn.widgets.DataFrame(df[["Nome", "Bairro", "Tipo de Denúncia", "Breve relato", "SubmissionDate"]], width=1000)
 
-def atualizar_visual(tipo, bairro, mapa_tipo):
+def atualizar_visual(tipo, bairro):
     filtered_df = df.copy()
     if tipo != "Todos":
         filtered_df = filtered_df[filtered_df["Tipo de Denúncia"] == tipo]
@@ -71,26 +64,9 @@ def atualizar_visual(tipo, bairro, mapa_tipo):
 
     mapa_html = "<div style='height: 500px;'>Mapa não pôde ser gerado.</div>"
     if not filtered_df.empty:
-        # Calcular o centro do mapa baseado nos marcadores
-        valid_coords = filtered_df.dropna(subset=["Latitude", "Longitude"])
-        if not valid_coords.empty:
-            avg_lat = valid_coords["Latitude"].mean()
-            avg_lon = valid_coords["Longitude"].mean()
-            mapa = folium.Map(
-                location=[avg_lat, avg_lon], 
-                zoom_start=13,
-                tiles=mapa_tipo,
-                control_scale=True
-            )
-            
-            # Adicionar controle de camadas
-            folium.TileLayer('OpenStreetMap').add_to(mapa)
-            folium.TileLayer('Stamen Terrain').add_to(mapa)
-            folium.TileLayer('Stamen Toner').add_to(mapa)
-            folium.TileLayer('CartoDB Positron').add_to(mapa)
-            folium.LayerControl().add_to(mapa)
-            
-            for idx, row in valid_coords.iterrows():
+        mapa = folium.Map(location=[filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()], zoom_start=13)
+        for idx, row in filtered_df.iterrows():
+            if pd.notnull(row["Latitude"]) and pd.notnull(row["Longitude"]):
                 imagem_html = ""
                 if pd.notnull(row.get("Foto_URL", "")):
                     imagem_html = f'<a href="{row["Foto_URL"]}" target="_blank"><img src="{row["Foto_URL"]}" width="200"></a>'
@@ -108,12 +84,12 @@ def atualizar_visual(tipo, bairro, mapa_tipo):
                     icon=folium.Icon(color="blue", icon="info-sign")
                 )
                 marker.add_to(mapa)
-            mapa_html = mapa._repr_html_()
+        mapa_html = mapa._repr_html_()
     mapa_pane.object = mapa_html
 
-@pn.depends(tipo_select.param.value, bairro_select.param.value, mapa_select.param.value)
-def interface(tipo, bairro, mapa_tipo):
-    atualizar_visual(tipo, bairro, mapa_tipo)
+@pn.depends(tipo_select.param.value, bairro_select.param.value)
+def interface(tipo, bairro):
+    atualizar_visual(tipo, bairro)
     return pn.Column(
         pn.pane.Markdown("### 🗺️ Mapa das Denúncias"),
         mapa_pane,
@@ -127,16 +103,12 @@ template = pn.template.FastListTemplate(
         "### Filtros",
         tipo_select,
         bairro_select,
-        "### Configurações do Mapa",
-        mapa_select,
-        pn.pane.Markdown("---\n**Dicas de uso:**\n- Clique nos marcadores para ver detalhes\n- Use os filtros para navegar\n- Altere o tipo de mapa conforme necessidade")
     ],
     main=[
         interface
     ],
     accent_base_color="#2A4D9B",
-    header_background="#2A4D9B",
-    sidebar_width=300
+    header_background="#2A4D9B"
 )
 
 template.servable()
